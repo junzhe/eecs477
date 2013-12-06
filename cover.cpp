@@ -59,6 +59,48 @@ struct AntennaComp{
   }
 };
 
+void branch_and_bound(vector<bool> &visited, vector<int> &cur_sol_rm, int &cur_sum, vector<int> &max_sol_rm, int &max_sum, int level){
+  cout<<level<<" "<<cur_sum<<" "<<max_sum<<endl;
+  
+  if(cur_sum > max_sum){
+    max_sum = cur_sum;
+    max_sol_rm = cur_sol_rm;
+  }
+ 
+  if(level >= A.size()){
+    return;
+  }
+
+  for(int i = 0; i < A.size(); i++){
+    int val = 0;
+    if(visited[i] || (val = get_val(A[i])) < 0) continue;
+    
+    Antenna *a = A[i];
+
+    visited[i] = true;
+
+    cur_sol_rm.push_back(i);
+
+    cur_sum += val;
+
+    for(Base *b : a->base){
+      b->ref_count--;
+    }
+
+    branch_and_bound(visited, cur_sol_rm, cur_sum, max_sol_rm, max_sum, level+1);
+
+    visited[i] = false;
+
+    cur_sum -= val;
+
+    cur_sol_rm.pop_back();
+
+    for(Base *b : a->base){
+	b->ref_count++;
+    }
+  }
+}
+
 int main(){
   int m, n;
   cin >> m >> n;
@@ -113,19 +155,25 @@ int main(){
     if(b->ref_count == 1) total_sum++;
   }
 
-  int max_sum = 0;
+  int max_sum = total_sum;
 
   int C = 1;
 
-  if(iter_num <= 10) C = 10;
+  if(iter_num < 10) C = 10;
 
   vector<int> max_sol_rm;
 
-  //helper(q, cur_sum, max_sum, sol_rm, max_sol_rm);
+  int cur_sum = total_sum;
+
+  vector<int> cur_sol_rm;
+
+  vector<bool> visited(false, A.size());
+
+  //branch_and_bound(visited, cur_sol_rm, cur_sum, max_sol_rm, max_sum, 0);
 
   for(int i = 0; i < iter_num * iter_num * C; i++){
  
-    double T = 50;
+    double T = 10000 / 0.95;
     int ei = A.size();
     int cur_sum = total_sum;
     vector<int> sol_rm;
@@ -137,19 +185,20 @@ int main(){
 
       a->e = ei--;
 
+      q.pop();
+
+      T *= 0.95;
+
       int val = get_val(a);
 
       if(val < 0){
 	double r = ((double) rand() / (RAND_MAX));
 
-	double diff = a->base.size() + 1;
+	double diff = 1;// a->base.size();
 
 	double p = exp(((double)(val)) * diff / T);
 
-	T *= 0.5;
-
 	if(r > p){
-	  q.pop();
 	  continue;
 	}
       }
@@ -162,8 +211,6 @@ int main(){
 	max_sum = cur_sum;
 	max_sol_rm = sol_rm;
       }
-      
-      q.pop();
       
       for(Base *b : a->base){
 	b->ref_count--;
